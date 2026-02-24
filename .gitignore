@@ -1,0 +1,27 @@
+dist
+node_modules
+data
+
+# macOS/editor
+.DS_Store
+.vscode/
+.idea/
+.claude
+
+# Python
+__pycache__
+.venv
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+
+# Env/logs
+.env
+.env.*
+*.log
+
+# TypeScript
+*.tsbuildinfo
