@@ -1,0 +1,85 @@
+{
+  "Level Bust": {
+    "description": "A level bust occurs when an aircraft fails to fly at the level to which it has been cleared, regardless of whether actual loss of separation from other aircraft or the ground results. Level busts are also known as Altitude Deviations. For further information read the lead article aboutLevel Bust.",
+    "slug": "level-bust",
+    "code": "LB"
+  },
+  "Loss of Control": {
+    "description": "On this page you can see all the articles related to the subject of Loss of Control. While many of the subjects covered within this risk category are not in themselves loss of control issues, the mishandling of those events could very rapidly result in a loss of control situation. Loss of control in flight is a major cause of fatal aircraft accidents. Loss of control usually occurs because the aircraft enters a flight regime which is outside its normal envelope. For further information read the lead article aboutLoss of Control.",
+    "slug": "loss-control",
+    "code": "LOC"
+  },
+  "Loss of Separation": {
+    "description": "Loss of separation between aircraft occurs whenever specified separation minima are breached. Minimumseparation standardsfor airspace are specified by ATS authorities, based on ICAO standards. Normally, an event is considered as loss of separation between aircraft when both the horizontal and the vertical minima are breached (the exception beingcomposite separation). This may ultimately result in amid air collision. ALevel Bustis one scenario where a loss of separation occurs, leading potentially to a mid air collision. Loss of separation fromnotified airspaceis dealt with underAirspace Infringement. Loss of separation from the ground is dealt with underControlled Flight Into Terrain (CFIT). Loss of separation between aircraft on the ground is dealt with underGround OperationsandRunway Incursion. Wake vortex, which may be a consequence of loss of separation between aircraft on the same track, is covered in the category:Wake Vortex Turbulence. For further information read the lead article aboutLoss of Separation.",
+    "slug": "loss-separation",
+    "code": "LOS"
+  },
+  "Runway Incursion": {
+    "description": "ICAOdefines a Runway Incursion as:“Any occurrence at an aerodrome involving the incorrect presence of an aircraft vehicle or person on the protected area of a surface designated for the landing and take off of aircraft”. A general overview of the topic can be found in the articleRunway Incursion. Based on the specific aspects of runway incursion the articles listed below have been assigned to the following sub-categories: Airport Design and Infrastructure, Preventing Incorrect Presence on Runway, Runway Incursion Safety Nets, Organisational Defences Against Runway Incursion and Wrong Runway Use. To select a sub-category use the filter in the right data block. Because of their nature, some articles are listed in more than one sub-category. ",
+    "slug": "runway-incursion",
+    "code": "RI"
+  },
+  "Runway Excursion": {
+    "description": "Runway excursionscan occur on takeoff or on landing as well as during taxi. They consist of two types of events: In view of the above, the articles related to runway excursions have been assigned to the following sub-categories: To select a sub-category use the filter in the right data block. Because of their nature, some articles are listed in more than one sub-category.",
+    "slug": "runway-excursion",
+    "code": "RE"
+  },
+  "Wake Vortex Turbulence": {
+    "description": "All aircraft generate vortices at the wing tips as a consequence of producing lift. The heavier the aircraft and the slower it is flying, the stronger the vortex. Among other factors, the size of the vortex is proportional to the span of the aircraft which generates it. At low altitudes, vortices generally persist for as long as 80 seconds, but in very light or calm wind conditions, they can last for up to two and a half minutes. Once formed, vortices continue to descend until they decay (or reach the ground). Decay is usually rapid and occurs more quickly in windy conditions. Cross-winds can carry a vortex away from the flight path of the aircraft. Wake vortices are also a hazard at en-route altitudes: For further informaiton read the lead article aboutWake Vortex Turbulence.",
+    "slug": "wake-vortex-turbulence",
+    "code": "WAKE"
+  },
+  "Weather": {
+    "description": "On this page you will find articles on the subject of Weather. If you are a new vistor to this SKYbrary category, a good starting point is the entry level articleWeather. Based on the specific weather-related topics the articles listed below have been assigned to the following sub-categories: Icing, Turbulence, Volcanic Ash, Weather Risk Management, Weather Phenomena, Cloud Formation, Climatic Phenomena and Atmosphere. To select a sub-category use the filter in the right data block. Because of their nature, some articles are listed in more than one sub-category.",
+    "slug": "weather",
+    "code": "WX"
+  },
+  "Emergency and Contingency": {
+    "slug": "emergency-contingency",
+    "description": "This operational area encompasses all aspects of managing unexpected critical situations in aviation. The primary risks involve failure to adequately prepare for, or respond effectively to, emergencies, potentially leading to compromised safety, mission failure, or significant operational disruption.",
+    "code": "EPR"
+  },
+  "Unmanned Aerial Systems": {
+    "description": "An Unmanned Aerial System (UAS) has three components: These systems include, but are not limited to,Remotely Piloted Air Systems (RPAS)in which the UA is controlled by a 'pilot' using a radio data link from a remote location. UAS can also include an autonomously controlled UA or, more likely, a semi autonomous UA. In recent years, the tendency to refer to any UA as a Drone has developed but the term is not universally considered appropriate. UAs can vary in size from those which can be hand launched to purpose built or adapted vehicles the size of conventional fixed or rotary wing aircraft. For further informaiton read the entry article aboutUnmanned Aerial Systems.",
+    "slug": "unmanned-aerial-systems",
+    "code": "UAS"
+  },
+  "Air-Ground Communication": {
+    "description": "\"The passage of voice and/or data between an aircraft and a ground station such as air traffic control or aircraft operating agency.\" ICAO Annex 10 - Aeronautical Communications defines air ground communication as “Two-way communication between aircraft and stations or locations on the surface of the earth.” For further information read the lead article aboutAir Ground Communication.",
+    "slug": "air-ground-communication",
+    "code": "AGC"
+  },
+  "Airspace Infringement": {
+    "description": "Airspace infringement occurs when an aircraft enters notified airspace without previously requesting and obtaining clearance from the controlling authority of that airspace, or enters the airspace under conditions that were not contained in the clearance. Notified Airspaceincludescontrolled airspacestructures in ICAOairspace classesA to E, such asAirways,Terminal Control Areas(TMAs),Control Zones(CTRs) oraerodrome traffic zones(ATZ) outside controlled airspace, as well as restricted airspaces, such asdanger areas,restricted areas,prohibited areasand temporarysegregated/reservedareas. It should be noted thatVFRtraffic cannot infringe class E airspace because, under ICAO rules, neither anATC clearancenor radio communication is required to enter or operate within it, unless filed national differences call for one or the other (or both). Traffic followinginstrument flight rules (IFR)can infringe class E airspace when not in receipt of a clearance to enter it. Although VFR flights do not require clearance to enter Class E airspace, serious incidents have occurred between VFR and IFR flights in such airspace due largely to limitations in the “see-and-avoid” principle. Therefore this type of incident is also being addressed by airspace infringement prevention initiatives. All classes of aircraft are prone to airspace infringement, but the majority of incidents recorded involveGeneral Aviation (GA). This is unsurprising, as most GA VFR flights are conducted outside controlled areas and zones, and are in general flown by less trained and less experienced leisure pilots; whereas IFR flights are usually conducted within controlled airspace and carried out under the supervision of ATC units. Currently, restricted airspace infringement and controlled airspace infringement are two of theATM top 5 operational safety prioritiesidentified by EUROCONTROL Operational Safety Group (SAFOPS).They have been identified as an initiator in many high severity en-route incidents (see theTableau dashboardfor details).",
+    "slug": "airspace-infringement",
+    "code": "AI"
+  },
+  "Wildlife Strike": {
+    "description": "A wildlife strike is a collision between an animal (most often a bird, but sometimes another species) and a man made vehicle, especially aircraft. Wildlife strikes constitute a serious hazard to aircraft safety and have caused a number of fatal accidents. For further information read the lead article aboutWildlife Strike.",
+    "slug": "wildlife-strike",
+    "code": "BS"
+  },
+  "Controlled Flight Into Terrain": {
+    "description": "Controlled Flight into Terrain (CFIT) occurs when an airworthy aircraft under the complete control of the pilot is inadvertently flown into terrain, water, or an obstacle. The pilots are generally unaware of the danger until it is too late. Most CFIT accidents occur in the approach and landing phase of flight and are often associated with non-precision approaches. Many CFIT accidents occur because of loss of situational awareness, particularly in the vertical plane, and many crash sites are on the centreline of an approach to an airfield. Lack of familiarity with the approach or misreading of the approach plate are common causal factors, particularly where the approach features steps down in altitude from the initial approach fix to the final approach fix. For further information read the lead article aboutControlled Flight Into Terrain.",
+    "slug": "controlled-flight-terrain",
+    "code": "CFIT"
+  },
+  "Fire Smoke and Fumes": {
+    "description": "The effect of fire, smoke or fumes on an aircraft, its passengers and crew can range from inconsequential to catastrophic depending upon the type and the severity of the event, crew actions and the degree of their success, and, in the event of an uncontrollable in-flight fire, the time lapse between discovery of the fire and an on or off airfield landing. A general overview of the topic is given in the article \"Fire, Smoke and Fumes\". Within this risk category, the hazards associated with fire, smoke and fumes are discussed in articles grouped under the following sub-categories: Operational Fires, Post Crash Fires, Combustion Related Smoke, Non Combustion Related Fumes and Fire Protection. To select a sub-category use the filter in the right data block. Because of their nature, some articles may be listed in more than one sub-category.",
+    "slug": "fire-smoke-and-fumes",
+    "code": "FIRE"
+  },
+  "Ground Operations": {
+    "description": "Ground Operations involves all aspects of aircraft handling at the airport, as well as aircraft movement around the aerodrome except on active runways. The safety challenges of ground operations are partly associated directly with those operations; for example, ensuring that aircraft are not involved in collisions and that the jet efflux from large aircraft does not endanger small ones. Even more important, ground operations are about preparing aircraft for departure in such a way that the subsequent flight will be safe; for example, correct loading of cargo and baggage, sufficient and verified fuel of adequate quantity and quality and the correct use of ground deicing and anti-icing facilities, where appropriate. For further, general information about the safety challenges associated with ground operaitons read the entry articleGround Operations.",
+    "slug": "ground-operations",
+    "code": "GND"
+  },
+  "Airworthiness": {
+    "description": "Airworthiness may be defined as the fitness of an aircraft for flight in all the environments and circumstances for which it has been designed and to which it may therefore be exposed. An Airworthy aeroplane is one which is fit to fly. For further information read the entry article aboutAirworthiness.",
+    "slug": "airworthiness",
+    "code": "AW"
+  },
+  "Wake Turbulence": {
+    "code": "WAKE"
+  }
+}

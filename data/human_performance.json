@@ -1,0 +1,37 @@
+{
+  "Human Behaviour": {
+    "description": "On this page you will find articles on the subject ofHuman Behaviour- factors which affect personal performance but also affect interaction with others, which often defines overall safety performance. For a wider view of content in the Human Performance Portal see the separate articleHuman Performance. You may find further information of interest in theFlight Safety Foundation (FSF)toolkit: \"Operators Guide to Human Factors in Aviation\".",
+    "slug": "human-behaviour",
+    "code": "HP"
+  },
+  "Design Philosophy": {
+    "description": "On this page you will find articles on the subject of Design Philosophy. You may find further information of interest in theFlight Safety Foundation (FSF)toolkit: \"Operators Guide to Human Factors in Aviation\".",
+    "slug": "design-philosophy",
+    "code": "HP"
+  },
+  "Human Performance Modelling": {
+    "description": "On this page you will find articles on the subject of Models for Human Factors. You may find further information of interest in theFlight Safety Foundation (FSF)toolkit: \"Operators Guide to Human Factors in Aviation\".",
+    "slug": "human-performance-modelling",
+    "code": "HP"
+  },
+  "Organisation and Human Performance": {
+    "description": "On this page you will find articles on the subject of Organisation and Human Performance.",
+    "slug": "organisation-and-human-performance",
+    "code": "HP"
+  },
+  "Human Factors Training": {
+    "description": "On this page you will find articles on Human Factors Training. You may find further information of interest in theFlight Safety Foundation (FSF)toolkit: \"Operators Guide to Human Factors in Aviation\".",
+    "slug": "human-factors-training",
+    "code": "HP"
+  },
+  "Aeromedical": {
+    "description": "On this page you will find articles relating to aviation medicine and human physiology.",
+    "slug": "aeromedical",
+    "code": "HP"
+  },
+  "OGHFA": {
+    "description": "The Operator's Guide to Human Factors in Aviation (OGHFA) is a project of theFlight Safety Foundation (FSF)European Advisory Committee. OGHFA is an extensive compendium of human factors information focused on further advancing commercial aviation safety. The articles are supported by a series of situational examples, checklists and visual presentations (see below). By way of an introduction, here below is the link to an article  to give you a broad overview of what is the Operator's Guide to Human Factors all about: An Introduction to the Purpose and Use of the Operator's Guide to Human Factors in Aviation",
+    "slug": "oghfa",
+    "code": "HP"
+  }
+}
