@@ -36,7 +36,8 @@ The MCP server runs locally. Ollama and ChromaDB can run locally or on a remote 
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 22.19+ (Node.js 24 LTS recommended)
+- pnpm 12.8.2
 - A SKYbrary account (for building the RAG index)
 - [Ollama](https://ollama.com) with `mxbai-embed-large` pulled
 - [ChromaDB](https://www.trychroma.com) (Docker recommended)
