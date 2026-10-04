@@ -27,6 +27,7 @@ Use --resume to skip categories whose keywords have already been written.
 
 import asyncio
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -34,19 +35,26 @@ from urllib.parse import urlparse
 
 import httpx
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
 
 # ---------------------------------------------------------------------------
 # Paths & constants
 # ---------------------------------------------------------------------------
-DATA_DIR    = Path(__file__).parent.parent.parent / "data"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DATA_DIR    = PROJECT_ROOT / "data"
 ISSUES_FILE = DATA_DIR / "operational_issues.json"
 MAP_FILE    = DATA_DIR / "operational_issues_map.json"
 
-BASE_URL = "https://skybrary.aero"
+load_dotenv(PROJECT_ROOT / ".env")
 
-HEADERS       = {"User-Agent": "MCP-Scraper/1.0", "Accept-Language": "en-US,en;q=0.9"}
-SLEEP_BETWEEN = 5   # seconds between normal requests
-SLEEP_429     = 30  # seconds to wait after a 429 response
+BASE_URL = os.environ.get("SKYBRARY_BASE_URL", "https://skybrary.aero").rstrip("/")
+HEADERS = {
+    "User-Agent": os.environ.get("SCRAPER_USER_AGENT", "MCP-Scraper/1.0"),
+    "Accept-Language": os.environ.get("SCRAPER_ACCEPT_LANGUAGE", "en-US,en;q=0.9"),
+}
+REQUEST_TIMEOUT = float(os.environ.get("SCRAPER_REQUEST_TIMEOUT_SECONDS", "30"))
+SLEEP_BETWEEN = float(os.environ.get("SCRAPER_DELAY_SECONDS", "5"))
+SLEEP_429 = float(os.environ.get("SCRAPER_RATE_LIMIT_DELAY_SECONDS", "30"))
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -230,7 +238,7 @@ async def main() -> None:
 
     map_data: dict = dict(existing_map)
 
-    async with httpx.AsyncClient(headers=HEADERS, timeout=30) as client:
+    async with httpx.AsyncClient(headers=HEADERS, timeout=REQUEST_TIMEOUT) as client:
         categories = list(issues_data.items())
 
         for idx, (name, info) in enumerate(categories, 1):

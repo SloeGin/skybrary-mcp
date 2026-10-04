@@ -85,6 +85,7 @@ Copy the RAG scripts to the Linux machine and install dependencies (one-time):
 ```bash
 # From Mac
 rsync -av scripts/rag/ user@YOUR_RAG_HOST:~/skybrary-rag/scripts/rag/
+rsync -av .env.example user@YOUR_RAG_HOST:~/skybrary-rag/
 
 # On Linux
 cd ~/skybrary-rag
@@ -94,10 +95,8 @@ pip install -r scripts/rag/requirements.txt
 Then run the pipeline with your SKYbrary credentials:
 
 ```bash
-# Set credentials once for this shell session
-export SKYBRARY_USER="you@example.com"
-read -s SKYBRARY_PASS
-export SKYBRARY_PASS
+# Create a credentials file in ~/skybrary-rag, then edit it
+cp .env.example .env
 
 # 3a. Fetch the list of all accident/incident report slugs
 python scripts/rag/populate_accidents_incidents.py
@@ -136,25 +135,17 @@ container restart needed.
 
 ## Step 5 — Configure the MCP server (Mac)
 
-Set the remote endpoints in:
-`claude_desktop_config.json`
+Set the remote endpoints in the `.env` file in the MCP repository on the Mac:
 
-```json
-{
-  "mcpServers": {
-    "skybrary": {
-      "command": "node",
-      "args": ["/path/to/SKYbrary-MCP/dist/index.js"],
-      "env": {
-        "OLLAMA_URL": "http://YOUR_RAG_HOST:11434",
-        "OLLAMA_MODEL": "mxbai-embed-large",
-        "CHROMA_URL": "http://YOUR_RAG_HOST:8000",
-        "CHROMA_COLLECTION": "accidents_incidents"
-      }
-    }
-  }
-}
+```dotenv
+OLLAMA_URL=http://YOUR_RAG_HOST:11434
+OLLAMA_MODEL=mxbai-embed-large
+CHROMA_URL=http://YOUR_RAG_HOST:8000
+CHROMA_COLLECTION=accidents_incidents
 ```
+
+The MCP server loads this file automatically. Values supplied by the launching
+process still take precedence when an override is needed.
 
 ## Updating the index
 

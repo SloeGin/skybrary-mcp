@@ -34,29 +34,33 @@ Use --resume to skip chunks already present in ChromaDB.
 
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 
 import httpx
+from dotenv import load_dotenv
 
 # ---------------------------------------------------------------------------
-# Config
+# Paths and config
 # ---------------------------------------------------------------------------
-import os
-
-DATA_DIR      = Path(__file__).parent.parent.parent / "data"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DATA_DIR      = PROJECT_ROOT / "data"
 PROCESSED_DIR = DATA_DIR / "rag" / "processed"
 
-OLLAMA_URL        = os.environ.get("OLLAMA_URL",        "http://localhost:11434")
+load_dotenv(PROJECT_ROOT / ".env")
+
+OLLAMA_URL        = os.environ.get("OLLAMA_URL",        "http://localhost:11434").rstrip("/")
 OLLAMA_MODEL      = os.environ.get("OLLAMA_MODEL",      "mxbai-embed-large")
-CHROMA_URL        = os.environ.get("CHROMA_URL",        "http://localhost:8000")
+CHROMA_URL        = os.environ.get("CHROMA_URL",        "http://localhost:8000").rstrip("/")
 CHROMA_TENANT     = os.environ.get("CHROMA_TENANT",     "default_tenant")
 CHROMA_DATABASE   = os.environ.get("CHROMA_DATABASE",   "default_database")
 CHROMA_COLLECTION = os.environ.get("CHROMA_COLLECTION", "accidents_incidents")
 CHROMA_BASE       = f"{CHROMA_URL}/api/v2/tenants/{CHROMA_TENANT}/databases/{CHROMA_DATABASE}"
 
-SLEEP_BETWEEN_ARTICLES = 1   # seconds between articles (embedding is fast)
-SLEEP_429 = 30               # seconds if Ollama returns 429
+OLLAMA_REQUEST_TIMEOUT = float(os.environ.get("OLLAMA_REQUEST_TIMEOUT_SECONDS", "60"))
+SLEEP_BETWEEN_ARTICLES = float(os.environ.get("EMBEDDING_DELAY_SECONDS", "1"))
+SLEEP_429 = float(os.environ.get("EMBEDDING_RATE_LIMIT_DELAY_SECONDS", "30"))
 
 # ---------------------------------------------------------------------------
 # Chunking
@@ -73,11 +77,11 @@ PRIORITY_SECTIONS = {
 SKIP_SECTIONS = {"Related Articles", "See Also", "Further Reading"}
 
 # Minimum section length to bother embedding (chars)
-MIN_SECTION_CHARS = 80
+MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "80"))
 
 # mxbai-embed-large (and most local embedding models) have a 512-token limit.
 # ~4 chars/token → truncate at ~1800 chars to stay safely under the limit.
-MAX_CHUNK_CHARS = 1800
+MAX_CHUNK_CHARS = int(os.environ.get("MAX_CHUNK_CHARS", "1800"))
 
 
 def _truncate(text: str, max_chars: int = MAX_CHUNK_CHARS) -> str:
@@ -159,7 +163,7 @@ async def embed_text(client: httpx.AsyncClient, text: str) -> list[float] | None
         resp = await client.post(
             f"{OLLAMA_URL}/api/embeddings",
             json={"model": OLLAMA_MODEL, "prompt": text},
-            timeout=60,
+            timeout=OLLAMA_REQUEST_TIMEOUT,
         )
         if resp.status_code == 429:
             print(f"  Ollama 429 — sleeping {SLEEP_429} s ...")
@@ -167,7 +171,7 @@ async def embed_text(client: httpx.AsyncClient, text: str) -> list[float] | None
             resp = await client.post(
                 f"{OLLAMA_URL}/api/embeddings",
                 json={"model": OLLAMA_MODEL, "prompt": text},
-                timeout=60,
+                timeout=OLLAMA_REQUEST_TIMEOUT,
             )
         resp.raise_for_status()
         return resp.json().get("embedding")

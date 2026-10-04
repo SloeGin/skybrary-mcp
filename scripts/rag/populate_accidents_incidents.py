@@ -4,7 +4,7 @@ Scrapes the full list of accident & incident reports from SKYbrary.
 URL pattern : https://skybrary.aero/accidents-and-incidents?page=N
 Requires login (Drupal form auth).
 
-Credentials are read from environment variables:
+Credentials are read from the repository root .env file:
     SKYBRARY_USER - your SKYbrary username / e-mail
     SKYBRARY_PASS - your SKYbrary password
 
@@ -15,10 +15,9 @@ Output: data/accidents_incidents.json
     ]
 
 Run:
-    export SKYBRARY_USER="you@example.com"
-    read -s SKYBRARY_PASS
-    export SKYBRARY_PASS
-    python scripts/populate_accidents_incidents.py
+    cp .env.example .env
+    # Edit .env with your SKYbrary credentials.
+    python scripts/rag/populate_accidents_incidents.py
 
 Use --resume to skip pages that have already been written to the output file.
 """
@@ -34,21 +33,28 @@ from urllib.parse import urlparse
 
 import httpx
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
 
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DATA_DIR = PROJECT_ROOT / "data"
 OUTPUT_FILE = DATA_DIR / "accidents_incidents.json"
 
-BASE_URL = "https://skybrary.aero"
+load_dotenv(PROJECT_ROOT / ".env")
+
+BASE_URL = os.environ.get("SKYBRARY_BASE_URL", "https://skybrary.aero").rstrip("/")
 LIST_PATH = "/accidents-and-incidents"
 LOGIN_PATH = "/user/login"
 
 HEADERS = {
-    "User-Agent": "MCP-Scraper/1.0",
-    "Accept-Language": "en-US,en;q=0.9",
+    "User-Agent": os.environ.get("SCRAPER_USER_AGENT", "MCP-Scraper/1.0"),
+    "Accept-Language": os.environ.get("SCRAPER_ACCEPT_LANGUAGE", "en-US,en;q=0.9"),
 }
+REQUEST_TIMEOUT = float(os.environ.get("SCRAPER_REQUEST_TIMEOUT_SECONDS", "30"))
+SLEEP_BETWEEN = float(os.environ.get("SCRAPER_DELAY_SECONDS", "5"))
+SLEEP_429 = float(os.environ.get("SCRAPER_RATE_LIMIT_DELAY_SECONDS", "30"))
 
 # ---------------------------------------------------------------------------
 # Pagination helper  (shared logic with populate_operational_issues_map.py)
@@ -192,11 +198,11 @@ async def main() -> None:
 
     if not username or not password:
         print(
-            "ERROR: Set SKYBRARY_USER and SKYBRARY_PASS environment variables before running.\n"
+            "ERROR: Set SKYBRARY_USER and SKYBRARY_PASS in the repository root .env file.\n"
             "  Example:\n"
-            "    export SKYBRARY_USER='you@example.com'\n"
-            "    read -s SKYBRARY_PASS && export SKYBRARY_PASS\n"
-            "    python scripts/populate_accidents_incidents.py"
+            "    cp .env.example .env\n"
+            "    # Edit .env, then run:\n"
+            "    python scripts/rag/populate_accidents_incidents.py"
         )
         sys.exit(1)
 
@@ -213,7 +219,7 @@ async def main() -> None:
 
     all_results: list[dict[str, str]] = list(existing)
 
-    async with httpx.AsyncClient(headers=HEADERS, timeout=30) as client:
+    async with httpx.AsyncClient(headers=HEADERS, timeout=REQUEST_TIMEOUT) as client:
         # --- Authenticate ---
         ok = await login(client, username, password)
         if not ok:
@@ -269,15 +275,15 @@ async def main() -> None:
         # --- Remaining pages ---
         page = start_page if start_page > 0 else 1
         while range_end < total:
-            await asyncio.sleep(5)
+            await asyncio.sleep(SLEEP_BETWEEN)
 
             page_url = f"{BASE_URL}{LIST_PATH}?page={page}"
             print(f"Fetching page {page}: {page_url}")
             try:
                 resp = await client.get(page_url, follow_redirects=True)
                 if resp.status_code == 429:
-                    print("  Rate limited (429) — sleeping 30 s then retrying...")
-                    await asyncio.sleep(30)
+                    print(f"  Rate limited (429) — sleeping {SLEEP_429} s then retrying...")
+                    await asyncio.sleep(SLEEP_429)
                     resp = await client.get(page_url, follow_redirects=True)
                 resp.raise_for_status()
             except Exception as e:

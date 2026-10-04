@@ -24,15 +24,14 @@ Each output file has the shape:
   }
 }
 
-Credentials:
+Credentials are read from the repository root .env file:
     SKYBRARY_USER - SKYbrary username / e-mail
     SKYBRARY_PASS - SKYbrary password
 
 Run:
-    export SKYBRARY_USER="you@example.com"
-    read -s SKYBRARY_PASS
-    export SKYBRARY_PASS
-    python scripts/process_accidents.py
+    cp .env.example .env
+    # Edit .env with your SKYbrary credentials.
+    python scripts/rag/process_accidents.py
 
 Use --resume to skip articles already present in data/rag/processed/.
 Use --slug <slug> to process only a single article (useful for debugging).
@@ -48,25 +47,30 @@ from pathlib import Path
 
 import httpx
 from bs4 import BeautifulSoup, Tag
+from dotenv import load_dotenv
 
 # ---------------------------------------------------------------------------
 # Paths & constants
 # ---------------------------------------------------------------------------
-DATA_DIR       = Path(__file__).parent.parent.parent / "data"
+PROJECT_ROOT   = Path(__file__).resolve().parents[2]
+DATA_DIR       = PROJECT_ROOT / "data"
 INCIDENTS_FILE = DATA_DIR / "accidents_incidents.json"
 OUTPUT_DIR     = DATA_DIR / "rag" / "processed"
 
-BASE_URL   = "https://skybrary.aero"
+load_dotenv(PROJECT_ROOT / ".env")
+
+BASE_URL = os.environ.get("SKYBRARY_BASE_URL", "https://skybrary.aero").rstrip("/")
 ARTICLE_PATH = "/accidents-and-incidents"
 LOGIN_PATH   = "/user/login"
 
 HEADERS = {
-    "User-Agent": "MCP-Scraper/1.0",
-    "Accept-Language": "en-US,en;q=0.9",
+    "User-Agent": os.environ.get("SCRAPER_USER_AGENT", "MCP-Scraper/1.0"),
+    "Accept-Language": os.environ.get("SCRAPER_ACCEPT_LANGUAGE", "en-US,en;q=0.9"),
 }
 
-SLEEP_BETWEEN = 5   # seconds between article fetches
-SLEEP_429     = 30  # seconds after a 429
+REQUEST_TIMEOUT = float(os.environ.get("SCRAPER_REQUEST_TIMEOUT_SECONDS", "30"))
+SLEEP_BETWEEN = float(os.environ.get("SCRAPER_DELAY_SECONDS", "5"))
+SLEEP_429 = float(os.environ.get("SCRAPER_RATE_LIMIT_DELAY_SECONDS", "30"))
 
 # ---------------------------------------------------------------------------
 # Login  (identical to populate_accidents_incidents.py)
@@ -396,11 +400,11 @@ async def main() -> None:
 
     if not username or not password:
         print(
-            "ERROR: Set SKYBRARY_USER and SKYBRARY_PASS environment variables.\n"
+            "ERROR: Set SKYBRARY_USER and SKYBRARY_PASS in the repository root .env file.\n"
             "  Example:\n"
-            "    export SKYBRARY_USER='you@example.com'\n"
-            "    read -s SKYBRARY_PASS && export SKYBRARY_PASS\n"
-            "    python scripts/process_accidents.py"
+            "    cp .env.example .env\n"
+            "    # Edit .env, then run:\n"
+            "    python scripts/rag/process_accidents.py"
         )
         sys.exit(1)
 
@@ -440,7 +444,7 @@ async def main() -> None:
 
     print(f"{len(todo)} articles to process ({done_count} already done, {total} total)\n")
 
-    async with httpx.AsyncClient(headers=HEADERS, timeout=30) as client:
+    async with httpx.AsyncClient(headers=HEADERS, timeout=REQUEST_TIMEOUT) as client:
         ok = await login(client, username, password)
         if not ok:
             print("Aborting: could not log in.")

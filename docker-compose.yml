@@ -4,7 +4,7 @@ services:
     volumes:
       - ollama-data:/root/.ollama
     ports:
-      - "11434:11434"
+      - "${OLLAMA_PORT:-11434}:11434"
     environment:
       - OLLAMA_HOST=0.0.0.0:11434
     deploy:
@@ -25,7 +25,7 @@ services:
     image: ollama/ollama:latest
     volumes:
       - ollama-data:/root/.ollama
-    entrypoint: ["/bin/sh", "-c", "ollama pull mxbai-embed-large"]
+    entrypoint: ["/bin/sh", "-c", "ollama pull ${OLLAMA_MODEL:-mxbai-embed-large}"]
     environment:
       - OLLAMA_HOST=http://ollama:11434
     depends_on:
@@ -38,7 +38,7 @@ services:
     volumes:
       - ./data/rag/chroma:/chroma/chroma
     ports:
-      - "8000:8000"
+      - "${CHROMA_PORT:-8000}:8000"
     environment:
       - IS_PERSISTENT=TRUE
       - PERSIST_DIRECTORY=/chroma/chroma

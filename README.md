@@ -77,10 +77,8 @@ Output: `data/operational_issues.json`, `data/human_performance.json`, and keywo
 ```bash
 pip install -r scripts/rag/requirements.txt
 
-# Set credentials once for this shell session
-export SKYBRARY_USER="you@example.com"
-read -s SKYBRARY_PASS
-export SKYBRARY_PASS
+# Create a local credentials file, then edit it with your SKYbrary login
+cp .env.example .env
 
 # 4a. Fetch the list of all accident/incident slugs
 python scripts/rag/populate_accidents_incidents.py
@@ -109,33 +107,42 @@ Add to `claude_desktop_config.json` (usually at `~/Library/Application Support/C
 }
 ```
 
-If Ollama and ChromaDB are on a remote machine, add the `env` block:
+If Ollama and ChromaDB are on a remote machine, set their URLs in the repository
+root `.env` file:
 
-```json
-{
-  "mcpServers": {
-    "skybrary": {
-      "command": "node",
-      "args": ["/absolute/path/to/SKYbrary-MCP/dist/index.js"],
-      "env": {
-        "OLLAMA_URL": "http://YOUR_RAG_HOST:11434",
-        "CHROMA_URL": "http://YOUR_RAG_HOST:8000"
-      }
-    }
-  }
-}
+```dotenv
+OLLAMA_URL=http://YOUR_RAG_HOST:11434
+CHROMA_URL=http://YOUR_RAG_HOST:8000
 ```
 
 ## Environment variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `SKYBRARY_USER` | — | SKYbrary username or email |
+| `SKYBRARY_PASS` | — | SKYbrary password |
+| `SKYBRARY_BASE_URL` | `https://skybrary.aero` | SKYbrary base URL |
+| `SCRAPER_USER_AGENT` | `MCP-Scraper/1.0` | Scraper HTTP user agent |
+| `SCRAPER_ACCEPT_LANGUAGE` | `en-US,en;q=0.9` | Scraper language header |
+| `SCRAPER_REQUEST_TIMEOUT_SECONDS` | `30` | Scraper request timeout |
+| `SCRAPER_DELAY_SECONDS` | `5` | Delay between SKYbrary requests |
+| `SCRAPER_RATE_LIMIT_DELAY_SECONDS` | `30` | Retry delay after HTTP 429 |
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama server URL |
 | `OLLAMA_MODEL` | `mxbai-embed-large` | Embedding model name |
+| `OLLAMA_PORT` | `11434` | Host port exposed by Docker Compose |
+| `OLLAMA_REQUEST_TIMEOUT_SECONDS` | `60` | Embedding request timeout |
+| `EMBEDDING_DELAY_SECONDS` | `1` | Delay between embedded articles |
+| `EMBEDDING_RATE_LIMIT_DELAY_SECONDS` | `30` | Ollama retry delay after HTTP 429 |
 | `CHROMA_URL` | `http://localhost:8000` | ChromaDB server URL |
+| `CHROMA_PORT` | `8000` | Host port exposed by Docker Compose |
 | `CHROMA_TENANT` | `default_tenant` | ChromaDB tenant |
 | `CHROMA_DATABASE` | `default_database` | ChromaDB database |
 | `CHROMA_COLLECTION` | `accidents_incidents` | ChromaDB collection name |
+| `MIN_SECTION_CHARS` | `80` | Minimum section length to embed |
+| `MAX_CHUNK_CHARS` | `1800` | Maximum embedding chunk length |
+
+The Python scripts, compiled MCP server, and Docker Compose all read the root
+`.env` file. Existing system environment variables take precedence.
 
 ## File structure
 

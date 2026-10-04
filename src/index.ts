@@ -19,12 +19,19 @@ const server = new McpServer({
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_DIR = path.resolve(__dirname, "..", "data");
+const ENV_FILE = path.resolve(__dirname, "..", ".env");
+
+if (existsSync(ENV_FILE)) {
+  process.loadEnvFile(ENV_FILE);
+}
+
 const cache = new CacheManager("data/cache", 30);
 
 // RAG config — override via environment variables if needed
-const OLLAMA_URL        = process.env.OLLAMA_URL        ?? "http://localhost:11434";
+const SKYBRARY_BASE_URL = (process.env.SKYBRARY_BASE_URL ?? "https://skybrary.aero").replace(/\/$/, "");
+const OLLAMA_URL        = (process.env.OLLAMA_URL        ?? "http://localhost:11434").replace(/\/$/, "");
 const OLLAMA_MODEL      = process.env.OLLAMA_MODEL      ?? "mxbai-embed-large";
-const CHROMA_URL        = process.env.CHROMA_URL        ?? "http://localhost:8000";
+const CHROMA_URL        = (process.env.CHROMA_URL        ?? "http://localhost:8000").replace(/\/$/, "");
 const CHROMA_TENANT     = process.env.CHROMA_TENANT     ?? "default_tenant";
 const CHROMA_DATABASE   = process.env.CHROMA_DATABASE   ?? "default_database";
 const CHROMA_COLLECTION = process.env.CHROMA_COLLECTION ?? "accidents_incidents";
@@ -156,7 +163,7 @@ server.tool(
     keyword_slug: z.string().describe("The slug of the article or issue to fetch")
   },
   async ({ keyword_slug }) => {
-    const baseUrl = "https://skybrary.aero/articles/";
+    const baseUrl = `${SKYBRARY_BASE_URL}/articles/`;
     const targetUrl = `${baseUrl}${keyword_slug}`;
     const headers = { "User-Agent": "MCP-Agent/1.0 (Aviation Safety Analysis Bot)" };
 
