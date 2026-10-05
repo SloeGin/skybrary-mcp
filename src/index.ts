@@ -35,25 +35,31 @@ const CHROMA_URL        = (process.env.CHROMA_URL        ?? "http://localhost:80
 const CHROMA_TENANT     = process.env.CHROMA_TENANT     ?? "default_tenant";
 const CHROMA_DATABASE   = process.env.CHROMA_DATABASE   ?? "default_database";
 const CHROMA_COLLECTION = process.env.CHROMA_COLLECTION ?? "accidents_incidents";
+const OPERATIONAL_ISSUES_COLLECTION = process.env.OPERATIONAL_ISSUES_COLLECTION ?? "operational_issues";
 const CHROMA_BASE       = `${CHROMA_URL}/api/v2/tenants/${CHROMA_TENANT}/databases/${CHROMA_DATABASE}`;
 
 async function embedQuery(query: string): Promise<number[] | null> {
   try {
-    const resp = await axios.post(`${OLLAMA_URL}/api/embeddings`, {
+    const resp = await axios.post(`${OLLAMA_URL}/api/embed`, {
       model: OLLAMA_MODEL,
-      prompt: query,
+      input: query,
+      truncate: true,
     }, { timeout: 30000 });
-    return resp.data.embedding ?? null;
+    return resp.data.embeddings?.[0] ?? null;
   } catch (e: any) {
     console.error("Ollama embedding error:", e.message);
     return null;
   }
 }
 
-async function queryChroma(embedding: number[], nResults: number): Promise<any[]> {
+async function queryChroma(
+  embedding: number[],
+  nResults: number,
+  collectionName = CHROMA_COLLECTION,
+): Promise<any[]> {
   // Look up the collection ID by name first
   const collResp = await axios.get(
-    `${CHROMA_BASE}/collections/${CHROMA_COLLECTION}`,
+    `${CHROMA_BASE}/collections/${collectionName}`,
     { timeout: 10000 }
   );
   const collectionId: string = collResp.data.id;
@@ -303,6 +309,51 @@ STEP 3 — EXTRACT REPORT DETAILS
       content: [{ type: "text", text: template }]
     };
   }
+);
+
+server.tool(
+  "search_operational_issues",
+  "Dense-retrieval candidate generator for SKYbrary Operational Issues. Returns the closest official issue definitions for incident facts or narrative text. Results are candidates, not a final classification.",
+  {
+    query: z.string().min(1).describe("Incident facts or narrative text to compare with official Operational Issue definitions"),
+    top_k: z.number().int().min(1).max(20).optional().describe("Number of candidates to return (default 5)"),
+  },
+  async ({ query, top_k = 5 }) => {
+    const embedding = await embedQuery(query);
+    if (!embedding) {
+      return { isError: true, content: [{ type: "text", text: "Failed to embed query via Ollama." }] };
+    }
+
+    let raw: any[];
+    try {
+      raw = await queryChroma(embedding, top_k, OPERATIONAL_ISSUES_COLLECTION);
+    } catch (e: any) {
+      return {
+        isError: true,
+        content: [{
+          type: "text",
+          text: `Operational Issues search failed: ${e.message}. Run scripts/rag/build_operational_issues_index.py first.`,
+        }],
+      };
+    }
+
+    const candidates = raw.map((result) => {
+      const metadata = result.metadata ?? {};
+      return {
+        issueId: metadata.issue_id ?? result.id,
+        name: metadata.name,
+        code: metadata.code,
+        score: Number((1 - (result.distance ?? 1)).toFixed(6)),
+        definition: metadata.definition,
+        sourceUrl: metadata.source_url,
+        keywords: typeof metadata.keywords === "string" && metadata.keywords
+          ? metadata.keywords.split(" | ")
+          : [],
+      };
+    });
+
+    return { content: [{ type: "text", text: JSON.stringify(candidates) }] };
+  },
 );
 
 server.tool(

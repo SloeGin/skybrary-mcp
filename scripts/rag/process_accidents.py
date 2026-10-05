@@ -8,6 +8,7 @@ Output: data/rag/processed/{slug}.json  one file per article
 Each output file has the shape:
 {
   "slug":         "a109-vicinity-london-heliport-london-uk-2013",
+  "content_access":"authenticated",
   "title":        "A109, vicinity London Heliport London UK, 2013",
   "url":          "https://skybrary.aero/accidents-and-incidents/...",
   "summary":      "On 16 January 2013 ...",
@@ -24,16 +25,14 @@ Each output file has the shape:
   }
 }
 
-Credentials are read from the repository root .env file:
-    SKYBRARY_USER - SKYbrary username / e-mail
-    SKYBRARY_PASS - SKYbrary password
-
 Run:
-    cp .env.example .env
-    # Edit .env with your SKYbrary credentials.
     python scripts/rag/process_accidents.py
 
+The browser logs in with SKYBRARY_USER and SKYBRARY_PASS from the root .env file
+before fetching protected report content.
+
 Use --resume to skip articles already present in data/rag/processed/.
+Use --limit N to process only the first N pending articles.
 Use --slug <slug> to process only a single article (useful for debugging).
 Use --save-html to write the raw fetched HTML to /tmp/<slug>.html for inspection.
 """
@@ -45,9 +44,9 @@ import re
 import sys
 from pathlib import Path
 
-import httpx
 from bs4 import BeautifulSoup, Tag
 from dotenv import load_dotenv
+from skybrary_browser import SkybraryBrowser
 
 # ---------------------------------------------------------------------------
 # Paths & constants
@@ -61,85 +60,17 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 BASE_URL = os.environ.get("SKYBRARY_BASE_URL", "https://skybrary.aero").rstrip("/")
 ARTICLE_PATH = "/accidents-and-incidents"
-LOGIN_PATH   = "/user/login"
-
-HEADERS = {
-    "User-Agent": os.environ.get("SCRAPER_USER_AGENT", "MCP-Scraper/1.0"),
-    "Accept-Language": os.environ.get("SCRAPER_ACCEPT_LANGUAGE", "en-US,en;q=0.9"),
-}
-
 REQUEST_TIMEOUT = float(os.environ.get("SCRAPER_REQUEST_TIMEOUT_SECONDS", "30"))
 SLEEP_BETWEEN = float(os.environ.get("SCRAPER_DELAY_SECONDS", "5"))
-SLEEP_429 = float(os.environ.get("SCRAPER_RATE_LIMIT_DELAY_SECONDS", "30"))
-
-# ---------------------------------------------------------------------------
-# Login  (identical to populate_accidents_incidents.py)
-# ---------------------------------------------------------------------------
-
-async def login(client: httpx.AsyncClient, username: str, password: str) -> bool:
-    login_url = f"{BASE_URL}{LOGIN_PATH}"
-    print(f"Fetching login page: {login_url}")
-    try:
-        resp = await client.get(login_url, follow_redirects=True)
-        resp.raise_for_status()
-    except Exception as e:
-        print(f"  Error fetching login page: {e}")
-        return False
-
-    soup = BeautifulSoup(resp.text, "html.parser")
-    form = soup.find("form", id=re.compile(r"user.login", re.I)) or soup.find("form")
-    if not form:
-        print("  Could not find login form.")
-        return False
-
-    payload: dict[str, str] = {}
-    for hidden in form.find_all("input", type="hidden"):
-        name = hidden.get("name")
-        if name:
-            payload[name] = hidden.get("value", "")
-
-    submit = form.find("input", type="submit")
-    if submit and submit.get("name"):
-        payload[submit["name"]] = submit.get("value", "Log in")
-
-    payload["name"] = username
-    payload["pass"] = password
-
-    action = form.get("action") or login_url
-    if action.startswith("/"):
-        action = f"{BASE_URL}{action}"
-
-    try:
-        post_resp = await client.post(action, data=payload, follow_redirects=True)
-    except Exception as e:
-        print(f"  Error posting login form: {e}")
-        return False
-
-    final_url = str(post_resp.url)
-    if LOGIN_PATH in final_url:
-        err_soup = BeautifulSoup(post_resp.text, "html.parser")
-        msg = err_soup.find(class_=re.compile(r"error|messages--error", re.I))
-        hint = msg.get_text(strip=True) if msg else "(no error message found)"
-        print(f"  Login failed. Hint: {hint}")
-        return False
-
-    print(f"  Logged in (redirected to {final_url})")
-    return True
 
 # ---------------------------------------------------------------------------
 # Fetch
 # ---------------------------------------------------------------------------
 
-async def fetch_article(client: httpx.AsyncClient, slug: str) -> str | None:
+async def fetch_article(browser: SkybraryBrowser, slug: str) -> str | None:
     url = f"{BASE_URL}{ARTICLE_PATH}/{slug}"
     try:
-        resp = await client.get(url, follow_redirects=True)
-        if resp.status_code == 429:
-            print(f"  Rate limited (429) — sleeping {SLEEP_429} s ...")
-            await asyncio.sleep(SLEEP_429)
-            resp = await client.get(url, follow_redirects=True)
-        resp.raise_for_status()
-        return resp.text
+        return await browser.fetch_authenticated(url)
     except Exception as e:
         print(f"  Error fetching {url}: {e}")
         return None
@@ -395,25 +326,20 @@ def parse_article(slug: str, html: str) -> dict:
 # ---------------------------------------------------------------------------
 
 async def main() -> None:
-    username = os.environ.get("SKYBRARY_USER", "").strip()
-    password = os.environ.get("SKYBRARY_PASS", "").strip()
-
-    if not username or not password:
-        print(
-            "ERROR: Set SKYBRARY_USER and SKYBRARY_PASS in the repository root .env file.\n"
-            "  Example:\n"
-            "    cp .env.example .env\n"
-            "    # Edit .env, then run:\n"
-            "    python scripts/rag/process_accidents.py"
-        )
-        sys.exit(1)
-
     if not INCIDENTS_FILE.exists():
         print(f"ERROR: {INCIDENTS_FILE} not found. Run populate_accidents_incidents.py first.")
         sys.exit(1)
 
     resume    = "--resume"    in sys.argv
     save_html = "--save-html" in sys.argv
+    limit: int | None = None
+    if "--limit" in sys.argv:
+        idx = sys.argv.index("--limit")
+        if idx + 1 >= len(sys.argv):
+            raise SystemExit("--limit requires an integer")
+        limit = int(sys.argv[idx + 1])
+        if limit < 1:
+            raise SystemExit("--limit must be at least 1")
 
     # --slug <slug>  → process only that one article
     single_slug: str | None = None
@@ -435,19 +361,33 @@ async def main() -> None:
 
     already_done: set[str] = set()
     if resume and not single_slug:
-        already_done = {p.stem for p in OUTPUT_DIR.glob("*.json")}
-        print(f"Resuming: {len(already_done)} articles already processed")
+        preview_count = 0
+        for path in OUTPUT_DIR.glob("*.json"):
+            try:
+                existing_article = json.loads(path.read_text())
+            except (OSError, json.JSONDecodeError):
+                continue
+            if existing_article.get("content_access") == "authenticated":
+                already_done.add(path.stem)
+            else:
+                preview_count += 1
+        print(f"Resuming: {len(already_done)} authenticated articles already processed")
+        if preview_count:
+            print(f"Reprocessing {preview_count} older public-preview files")
 
     todo = [i for i in incidents if i["slug"] not in already_done]
+    if limit:
+        todo = todo[:limit]
     total = len(incidents)
     done_count = len(already_done)
 
     print(f"{len(todo)} articles to process ({done_count} already done, {total} total)\n")
 
-    async with httpx.AsyncClient(headers=HEADERS, timeout=REQUEST_TIMEOUT) as client:
-        ok = await login(client, username, password)
-        if not ok:
-            print("Aborting: could not log in.")
+    async with SkybraryBrowser(REQUEST_TIMEOUT) as browser:
+        try:
+            await browser.login_from_env(required=True)
+        except Exception as e:
+            print(f"Aborting: could not establish an authenticated SKYbrary session: {e}")
             sys.exit(1)
 
         for idx, incident in enumerate(todo, 1):
@@ -455,7 +395,7 @@ async def main() -> None:
             title = incident.get("title", slug)
             print(f"[{idx}/{len(todo)}] {slug}")
 
-            html = await fetch_article(client, slug)
+            html = await fetch_article(browser, slug)
             if not html:
                 print("  Skipping (fetch failed).")
                 continue
@@ -466,6 +406,7 @@ async def main() -> None:
                 print(f"  Saved HTML → {html_path}")
 
             article = parse_article(slug, html)
+            article["content_access"] = "authenticated"
 
             out_path = OUTPUT_DIR / f"{slug}.json"
             with open(out_path, "w") as f:

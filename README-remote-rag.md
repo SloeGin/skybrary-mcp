@@ -34,6 +34,7 @@ scripts/
     populate_accidents_incidents.py
     process_accidents.py
     embed_accidents.py
+    build_operational_issues_index.py
     requirements.txt            # httpx, beautifulsoup4, chromadb
 docker-compose.yml              # Ollama + ChromaDB services
 ```
@@ -90,12 +91,13 @@ rsync -av .env.example user@YOUR_RAG_HOST:~/skybrary-rag/
 # On Linux
 cd ~/skybrary-rag
 pip install -r scripts/rag/requirements.txt
+python -m playwright install chromium
 ```
 
-Then run the pipeline with your SKYbrary credentials:
+Then run the authenticated pipeline:
 
 ```bash
-# Create a credentials file in ~/skybrary-rag, then edit it
+# Create a configuration file, add SKYbrary credentials, and edit service settings
 cp .env.example .env
 
 # 3a. Fetch the list of all accident/incident report slugs
@@ -105,6 +107,13 @@ python scripts/rag/populate_accidents_incidents.py
 #     Use --resume to continue an interrupted run
 python scripts/rag/process_accidents.py --resume
 ```
+
+The browser first passes SKYbrary's JavaScript check, then submits the login form
+using `SKYBRARY_USER` and `SKYBRARY_PASS`. Its authenticated cookies are reused
+for every protected report request, so complete content behind the paygate is
+processed rather than the public preview.
+Each processed JSON is marked `content_access: authenticated`. When `--resume`
+finds an older unmarked preview file, it re-fetches and replaces it.
 
 Output: `data/rag/processed/*.json` — one file per accident/incident report.
 
@@ -125,8 +134,12 @@ rsync -av --progress data/rag/processed/ \
 # OLLAMA_URL defaults to http://localhost:11434 which reaches the Docker container
 python scripts/rag/embed_accidents.py
 
-# Use --resume to skip chunks already present in ChromaDB
+# Use --resume only to continue an interrupted embedding run when source files
+# have not changed; normal runs upsert existing chunk IDs with current content.
 python scripts/rag/embed_accidents.py --resume
+
+# Build the independent Operational Issues collection
+python scripts/rag/build_operational_issues_index.py
 ```
 
 The `docker-compose.yml` mounts `./data/rag/chroma` as the ChromaDB data
@@ -142,6 +155,7 @@ OLLAMA_URL=http://YOUR_RAG_HOST:11434
 OLLAMA_MODEL=mxbai-embed-large
 CHROMA_URL=http://YOUR_RAG_HOST:8000
 CHROMA_COLLECTION=accidents_incidents
+OPERATIONAL_ISSUES_COLLECTION=operational_issues
 ```
 
 The MCP server loads this file automatically. Values supplied by the launching
@@ -155,7 +169,9 @@ When new SKYbrary reports are published, run on Linux:
 cd ~/skybrary-rag
 python scripts/rag/populate_accidents_incidents.py --resume
 python scripts/rag/process_accidents.py --resume
-python scripts/rag/embed_accidents.py --resume
+# Run without --resume after authenticated content has replaced previews
+python scripts/rag/embed_accidents.py
+python scripts/rag/build_operational_issues_index.py
 ```
 
 No Docker restart needed — ChromaDB persists changes to the volume immediately.

@@ -112,6 +112,7 @@ def build_chunks(article: dict) -> list[dict]:
         "aircraft_types": ", ".join(article.get("aircraft", [])),
         "location":      article.get("location", ""),
         "date":          article.get("date", ""),
+        "content_access": article.get("content_access", "unknown"),
     }
 
     # ── Chunk 0: metadata / header ─────────────────────────────────────────
@@ -158,23 +159,24 @@ def build_chunks(article: dict) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 async def embed_text(client: httpx.AsyncClient, text: str) -> list[float] | None:
-    """Call Ollama /api/embeddings and return the embedding vector."""
+    """Call Ollama /api/embed and return the embedding vector."""
     try:
         resp = await client.post(
-            f"{OLLAMA_URL}/api/embeddings",
-            json={"model": OLLAMA_MODEL, "prompt": text},
+            f"{OLLAMA_URL}/api/embed",
+            json={"model": OLLAMA_MODEL, "input": text, "truncate": True},
             timeout=OLLAMA_REQUEST_TIMEOUT,
         )
         if resp.status_code == 429:
             print(f"  Ollama 429 — sleeping {SLEEP_429} s ...")
             await asyncio.sleep(SLEEP_429)
             resp = await client.post(
-                f"{OLLAMA_URL}/api/embeddings",
-                json={"model": OLLAMA_MODEL, "prompt": text},
+                f"{OLLAMA_URL}/api/embed",
+                json={"model": OLLAMA_MODEL, "input": text, "truncate": True},
                 timeout=OLLAMA_REQUEST_TIMEOUT,
             )
         resp.raise_for_status()
-        return resp.json().get("embedding")
+        embeddings = resp.json().get("embeddings", [])
+        return embeddings[0] if embeddings else None
     except Exception as e:
         print(f"  Embedding error: {e}")
         return None
@@ -232,7 +234,7 @@ async def collection_count(client: httpx.AsyncClient, collection_id: str) -> int
     return resp.json()
 
 
-async def add_chunks(
+async def upsert_chunks(
     client: httpx.AsyncClient,
     collection_id: str,
     ids: list[str],
@@ -241,7 +243,7 @@ async def add_chunks(
     metadatas: list[dict],
 ) -> None:
     resp = await client.post(
-        f"{CHROMA_BASE}/collections/{collection_id}/add",
+        f"{CHROMA_BASE}/collections/{collection_id}/upsert",
         json={
             "ids":        ids,
             "embeddings": embeddings,
@@ -325,7 +327,7 @@ async def main() -> None:
                 metadatas_batch.append(chunk["metadata"])
 
             if ids_batch:
-                await add_chunks(
+                await upsert_chunks(
                     client, collection_id,
                     ids_batch, embeddings_batch, documents_batch, metadatas_batch,
                 )

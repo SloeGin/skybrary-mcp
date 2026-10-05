@@ -2,11 +2,8 @@
 Scrapes the full list of accident & incident reports from SKYbrary.
 
 URL pattern : https://skybrary.aero/accidents-and-incidents?page=N
-Requires login (Drupal form auth).
-
-Credentials are read from the repository root .env file:
-    SKYBRARY_USER - your SKYbrary username / e-mail
-    SKYBRARY_PASS - your SKYbrary password
+Uses an authenticated browser session because SKYbrary requires a JavaScript
+browser check and complete data is account-protected.
 
 Output: data/accidents_incidents.json
     [
@@ -15,11 +12,10 @@ Output: data/accidents_incidents.json
     ]
 
 Run:
-    cp .env.example .env
-    # Edit .env with your SKYbrary credentials.
     python scripts/rag/populate_accidents_incidents.py
 
 Use --resume to skip pages that have already been written to the output file.
+Use --limit N to stop after N entries (useful for a small evaluation set).
 """
 
 import asyncio
@@ -31,9 +27,9 @@ from math import ceil
 from pathlib import Path
 from urllib.parse import urlparse
 
-import httpx
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+from skybrary_browser import SkybraryBrowser
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -46,15 +42,8 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 BASE_URL = os.environ.get("SKYBRARY_BASE_URL", "https://skybrary.aero").rstrip("/")
 LIST_PATH = "/accidents-and-incidents"
-LOGIN_PATH = "/user/login"
-
-HEADERS = {
-    "User-Agent": os.environ.get("SCRAPER_USER_AGENT", "MCP-Scraper/1.0"),
-    "Accept-Language": os.environ.get("SCRAPER_ACCEPT_LANGUAGE", "en-US,en;q=0.9"),
-}
 REQUEST_TIMEOUT = float(os.environ.get("SCRAPER_REQUEST_TIMEOUT_SECONDS", "30"))
 SLEEP_BETWEEN = float(os.environ.get("SCRAPER_DELAY_SECONDS", "5"))
-SLEEP_429 = float(os.environ.get("SCRAPER_RATE_LIMIT_DELAY_SECONDS", "30"))
 
 # ---------------------------------------------------------------------------
 # Pagination helper  (shared logic with populate_operational_issues_map.py)
@@ -73,75 +62,6 @@ def parse_result_counts(html: str) -> tuple[int, int, int]:
 def total_pages(total: int, page_size: int) -> int:
     """Number of pages needed to cover all results (0-indexed)."""
     return ceil(total / page_size) if page_size else 1
-
-# ---------------------------------------------------------------------------
-# Login
-# ---------------------------------------------------------------------------
-
-async def login(client: httpx.AsyncClient, username: str, password: str) -> bool:
-    """Performs Drupal form-based login. Returns True on success."""
-    login_url = f"{BASE_URL}{LOGIN_PATH}"
-
-    # Step 1 - fetch the login form to get the CSRF / form tokens.
-    print(f"Fetching login page: {login_url}")
-    try:
-        resp = await client.get(login_url, follow_redirects=True)
-        resp.raise_for_status()
-    except Exception as e:
-        print(f"  Error fetching login page: {e}")
-        return False
-
-    soup = BeautifulSoup(resp.text, "html.parser")
-    form = soup.find("form", id=re.compile(r"user.login", re.I))
-    if not form:
-        # Fall back to any form on the page that has a 'name' field
-        form = soup.find("form")
-
-    if not form:
-        print("  Could not find login form on page.")
-        return False
-
-    # Collect all hidden inputs (Drupal uses form_build_id, form_id, op, etc.)
-    payload: dict[str, str] = {}
-    for hidden in form.find_all("input", type="hidden"):
-        name = hidden.get("name")
-        value = hidden.get("value", "")
-        if name:
-            payload[name] = value
-
-    # Also grab the submit button value if present
-    submit = form.find("input", type="submit")
-    if submit and submit.get("name"):
-        payload[submit["name"]] = submit.get("value", "Log in")
-
-    payload["name"] = username
-    payload["pass"] = password
-
-    # Step 2 - POST credentials.
-    action = form.get("action") or login_url
-    if action.startswith("/"):
-        action = f"{BASE_URL}{action}"
-
-    print(f"  Posting credentials to {action} ...")
-    try:
-        post_resp = await client.post(action, data=payload, follow_redirects=True)
-    except Exception as e:
-        print(f"  Error posting login form: {e}")
-        return False
-
-    # Drupal redirects to /user/<uid> or the destination on success.
-    # A failure usually stays on /user/login.
-    final_url = str(post_resp.url)
-    if LOGIN_PATH in final_url:
-        # Check for error messages in page
-        error_soup = BeautifulSoup(post_resp.text, "html.parser")
-        msg = error_soup.find(class_=re.compile(r"error|messages--error", re.I))
-        hint = msg.get_text(strip=True) if msg else "(no error message found)"
-        print(f"  Login appears to have failed. Hint: {hint}")
-        return False
-
-    print(f"  Logged in successfully (redirected to {final_url})")
-    return True
 
 # ---------------------------------------------------------------------------
 # Scraping
@@ -193,20 +113,15 @@ def extract_incidents(html: str) -> list[dict[str, str]]:
 # ---------------------------------------------------------------------------
 
 async def main() -> None:
-    username = os.environ.get("SKYBRARY_USER", "").strip()
-    password = os.environ.get("SKYBRARY_PASS", "").strip()
-
-    if not username or not password:
-        print(
-            "ERROR: Set SKYBRARY_USER and SKYBRARY_PASS in the repository root .env file.\n"
-            "  Example:\n"
-            "    cp .env.example .env\n"
-            "    # Edit .env, then run:\n"
-            "    python scripts/rag/populate_accidents_incidents.py"
-        )
-        sys.exit(1)
-
     resume = "--resume" in sys.argv
+    limit: int | None = None
+    if "--limit" in sys.argv:
+        idx = sys.argv.index("--limit")
+        if idx + 1 >= len(sys.argv):
+            raise SystemExit("--limit requires an integer")
+        limit = int(sys.argv[idx + 1])
+        if limit < 1:
+            raise SystemExit("--limit must be at least 1")
 
     # Load existing data when resuming
     existing: list[dict[str, str]] = []
@@ -219,11 +134,11 @@ async def main() -> None:
 
     all_results: list[dict[str, str]] = list(existing)
 
-    async with httpx.AsyncClient(headers=HEADERS, timeout=REQUEST_TIMEOUT) as client:
-        # --- Authenticate ---
-        ok = await login(client, username, password)
-        if not ok:
-            print("Aborting: could not log in.")
+    async with SkybraryBrowser(REQUEST_TIMEOUT) as browser:
+        try:
+            await browser.login_from_env(required=True)
+        except Exception as e:
+            print(f"Aborting: could not establish an authenticated SKYbrary session: {e}")
             sys.exit(1)
 
         OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -244,18 +159,16 @@ async def main() -> None:
             first_url = f"{BASE_URL}{LIST_PATH}?page=0"
             print(f"\nFetching first page: {first_url}")
             try:
-                resp = await client.get(first_url, follow_redirects=True)
-                resp.raise_for_status()
+                html = await browser.fetch_authenticated(first_url)
             except Exception as e:
                 print(f"Error fetching first page: {e}")
                 sys.exit(1)
 
-            html = resp.text
             total, range_start, range_end = parse_result_counts(html)
 
             if total == 0:
                 print("WARNING: Could not determine total result count from page text.")
-                print("  Make sure login succeeded and the page is accessible.")
+                print("  Make sure the browser check succeeded and the page is accessible.")
                 total = 9999
                 range_end = 0
             else:
@@ -266,11 +179,17 @@ async def main() -> None:
             entries = extract_incidents(html)
             new_entries = [e for e in entries if e["slug"] not in existing_slugs]
             all_results.extend(new_entries)
+            if limit:
+                all_results = all_results[:limit]
             existing_slugs.update(e["slug"] for e in new_entries)
             print(f"  Page 0: {len(entries)} entries ({len(new_entries)} new)")
 
             with open(OUTPUT_FILE, "w") as f:
                 json.dump(all_results, f, indent=2, ensure_ascii=False)
+
+            if limit and len(all_results) >= limit:
+                print(f"\nDone. {len(all_results)} entries written to {OUTPUT_FILE} (--limit reached)")
+                return
 
         # --- Remaining pages ---
         page = start_page if start_page > 0 else 1
@@ -280,17 +199,11 @@ async def main() -> None:
             page_url = f"{BASE_URL}{LIST_PATH}?page={page}"
             print(f"Fetching page {page}: {page_url}")
             try:
-                resp = await client.get(page_url, follow_redirects=True)
-                if resp.status_code == 429:
-                    print(f"  Rate limited (429) — sleeping {SLEEP_429} s then retrying...")
-                    await asyncio.sleep(SLEEP_429)
-                    resp = await client.get(page_url, follow_redirects=True)
-                resp.raise_for_status()
+                html = await browser.fetch_authenticated(page_url)
             except Exception as e:
                 print(f"  Error fetching {page_url}: {e}")
                 break
 
-            html = resp.text
             _, _, range_end = parse_result_counts(html)
 
             entries = extract_incidents(html)
@@ -300,12 +213,17 @@ async def main() -> None:
 
             new_entries = [e for e in entries if e["slug"] not in existing_slugs]
             all_results.extend(new_entries)
+            if limit:
+                all_results = all_results[:limit]
             existing_slugs.update(e["slug"] for e in new_entries)
             print(f"  Page {page}: {len(entries)} entries ({len(new_entries)} new), range end now #{range_end}/{total}")
 
             # Incremental save
             with open(OUTPUT_FILE, "w") as f:
                 json.dump(all_results, f, indent=2, ensure_ascii=False)
+
+            if limit and len(all_results) >= limit:
+                break
 
             if range_end >= total:
                 break

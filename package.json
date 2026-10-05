@@ -7,7 +7,7 @@
   "engines": {
     "node": ">=22.19.0"
   },
-  "packageManager": "pnpm@12.8.2",
+  "packageManager": "pnpm@12.9.1",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",

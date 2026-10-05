@@ -1,6 +1,7 @@
 dist
 node_modules
-data
+data/*
+data/eval/*
 
 # macOS/editor
 .DS_Store
